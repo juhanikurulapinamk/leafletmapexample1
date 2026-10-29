@@ -1,0 +1,113 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Flask Server-Rendered Map</title>
+
+        <!-- Leaflet CSS -->
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+        <style>
+            html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+        </style>
+    </head>
+    <body>
+
+        <div id="map"></div>
+
+        <!-- Leaflet JS -->
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+
+
+            const moveTrain = async (s, e, progress) => {
+                const res = await fetch(`http://localhost:5000/api/v1/position/${s[0]}/${s[1]}/${e[0]}/${e[1]}/${progress}`)
+
+                const data = await res.json()
+                console.log(data)
+                return data
+            }
+
+            // the function gets automatically called when the DOMContentLoaded event triggers
+            // DOMContentLoaded triggers when the page is fully loaded
+            document.addEventListener('DOMContentLoaded', function() {
+
+
+
+                // this is just a javascript function that gets called immediately
+                // when the DOMContentLoaded event triggers
+
+                // the map would work without this anonymous function
+                // but we need async in what we are about to do next
+                (async function() {
+                    // creates a leaflet map instance with the center of
+                    // 62.0, 25.0
+
+                    let currentStep = 0
+                    const updateCycle = 2
+                    // takes 60 seconds from helsinki to turku
+                    // updates every two seconds
+                    const totalSteps = 60 / updateCycle
+
+                    const map = L.map('map').setView([62.0, 25.0], 5);
+
+                    // using map tiles from open street map
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '&copy; OpenStreetMap contributors'
+                    }).addTo(map);
+
+                    const helsinki = [60.1699, 24.9384]
+                    const turku = [60.4518, 22.2666]
+
+                    const pl = L.polyline([helsinki, turku]).addTo(map);
+
+                    const trainMarker = L.marker(helsinki).addTo(map);
+
+                    const intervalId = setInterval(async () => {
+                        currentStep++
+                        const progress = currentStep / totalSteps
+                        if (progress >= 1.0) {
+                            trainMarker.setLatLng(turku);
+                            // stops running the polling function
+                            clearInterval(intervalId);
+                            return;
+
+                        }
+
+                        const nextPosition = await moveTrain(helsinki, turku, progress)
+
+                        trainMarker.setLatLng(nextPosition)
+
+
+                    }, updateCycle * 1000);
+
+                })()
+
+
+
+
+
+            })
+
+
+
+
+
+
+
+        </script>
+    </body>
+    </html>
